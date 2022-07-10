@@ -1,0 +1,80 @@
+// SHar Easy to Read confIg File Format
+module Sheriff
+
+//@The function loads a config in ".sheriff" format from a file.
+//@If the file could not be loaded, the function returns "nothing".
+//@If the configuration file is not a valid utf-8 file, then an exception is thrown with the code "const::STD::eid_invalidCharacter".
+//@If the configuration is incorrect, the function throws an exception, the data in the exception is an array of the line number and column number during parsing of which an error occurred.
+//@Possible errors:
+//@  const::Sherif::eid_notExpectedToken
+//@  const::Sherif::eid_notExpectedEOL
+//@  const::STD::eid_outOfRange
+//@  const::Sherif::eid_alreadyExist
+//@  const::Sherif::eid_invalidName
+//@  const::Sherif::eid_incorrectEscapeSequence
+export def loadFromFile(fileName String) <>Dict
+    return String.loadFromUTF8File(fileName)->loadFromString()
+
+//@The function loads a config in ".sheriff" format from a string.
+//@If the configuration is incorrect, the function throws an exception, the data in the exception is an array of the line number and column number during parsing of which an error occurred.
+//@Possible errors:
+//@  const::Sherif::eid_notExpectedToken
+//@  const::Sherif::eid_notExpectedEOL
+//@  const::STD::eid_outOfRange
+//@  const::Sherif::eid_alreadyExist
+//@  const::Sherif::eid_invalidName
+//@  const::Sherif::eid_incorrectEscapeSequence
+export def loadFromString(config String) Dict
+    var flatDict Dict = Dict()
+    var currentCategory String = ""
+    parse lineIndex, line String = config.split('\n')
+        var columnIndex Int = 0
+        const token <>Token = line.getToken(lineIndex, columnIndex)
+        if !token.nothing?()
+            token.name!()
+            if token[0] == '['
+                line.eol!(lineIndex, columnIndex)
+                currentCategory = token.text~()[1:token.length() - 1]
+                if currentCategory[currentCategory.length() - 1] == '-'
+                    currentCategory.delete(currentCategory.length() - 1, 1)
+                    currentCategory += token.getUniqID()
+            else
+                line.next!("=", lineIndex, columnIndex)
+                const value $Any = line.getOptionValue(lineIndex, columnIndex)
+                line.eol!(lineIndex, columnIndex)
+                flatDict.newOption(token, value, currentCategory)
+    return flatDict.toTree()
+
+def newOption(write flatDict Dict, optionName Token, value $Any, currentCategory String)
+    var fullOptionName Token = optionName
+    if optionName.text~()[optionName.text~().length() - 1] == '-'
+        fullOptionName.text`(fullOptionName.text~()[:fullOptionName.text~().length() - 1] + optionName.getUniqID())
+    if !currentCategory.empty?()
+        fullOptionName.text`(currentCategory + "." + fullOptionName.text~())
+    if !flatDict.put(fullOptionName.text~(), value).nothing?()
+        throw({
+            const::eid_alreadyExist,
+            fullOptionName.coordinatesToString() + "An option named \q" + fullOptionName.text~() + " already exists.",
+            [fullOptionName.lineIndex~() + 1, fullOptionName.columnIndex~() + 1]
+        })
+
+def toTree(flat Dict) Dict
+    var result Dict = Dict()
+    parse optionName String, value = flat
+        var optionPath Array = optionName.split('.')
+        var dicts Array = []
+        for :(pathIndex Int = 0) pathIndex < optionPath.length() - 1; pathIndex++
+            const category String = "[" +  optionPath[pathIndex] + "]"
+            optionPath.setItem(pathIndex, category)
+            var dict <>Dict = result.put(category, Dict())
+            if dict.nothing?()
+                dict = Dict()
+            dicts.addItem(result)
+            result = dict
+        result.put(optionPath[optionPath.length() - 1], value).type!(Nothing)
+        for :(pathIndex Int = optionPath.length() - 2) pathIndex != -1; pathIndex--
+            const category String = optionPath[pathIndex]
+            var dict Dict = dicts.put(pathIndex, Dict())
+            dict.put(category, result)
+            result = dict
+    return result

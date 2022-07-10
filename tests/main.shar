@@ -1,0 +1,11 @@
+module Main
+
+def main()
+    var ok Int = 0
+    var errorsCoordinates List = {}
+
+    testSheriff(ok, errorsCoordinates)
+
+    for :(index Int = 0) index < errorsCoordinates.length(); index += 2
+        println("\00001B[31mFail: (file: " + errorsCoordinates[index] + ", line: " + errorsCoordinates[index + 1].toString() + ")\00001B[0m")
+    println("\00001B[3" + (errorsCoordinates.empty?()).select("2", "1") + "m" + ok.toString() + "/" + (ok + errorsCoordinates.length() / 2).toString()+"\00001B[0m")

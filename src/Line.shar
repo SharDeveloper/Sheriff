@@ -1,0 +1,124 @@
+module Sheriff
+
+const valueRegExp RegExp = RegExp({
+    "(\q(?(s)((?:\q).)*)\q)|"
+    "((?(t)(true)|(on)|(yes)))|"
+    "((?(f)(false)|(off)|(no)))|"
+    "((?:[#+#-]0)(#+(?:-))?(?(i)-?(?:0.)`d+)$)|"
+    "((?(h)0x(?:0.)[`da-fA-F]+)$)|"
+    "((?:[#+#-]0.0$)(#+(?:-))?(?(r)-?(?:0`d)`d+#.`d((?:0$)`d)*)$)"
+})
+
+// The function receives the token from the line from the specified position.
+def getToken(line String, lineIndex, write columnIndex Int) <>Token
+    var token Token = Token{{
+        text        : "",
+        lineIndex   : lineIndex,
+        columnIndex : columnIndex
+    }}
+    for
+        if columnIndex >= line.length()
+            return token.empty?().select(nothing, token)
+        const char Char = line[columnIndex]
+        switch char
+        case ' '
+            if !token.empty?()
+                return token
+        case ';'
+            columnIndex = line.length()
+            if !token.empty?()
+                return token
+            return nothing
+        case '='
+            if token.empty?()
+                token.addChar(char)
+                token.columnIndex`(columnIndex)
+                columnIndex++
+            return token
+        case 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', {
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+            '_', '.', '-', '+', '[', ']'
+        }
+            if token.empty?()
+                token.addChar(char)
+                token.columnIndex`(columnIndex)
+            else
+                token.addChar(char)
+        case '\q'
+            if token.empty?()
+                token.columnIndex`(columnIndex)
+                const beginIndex Int = columnIndex
+                const endIndex <>Int = line.lookFromAtoB('\q', columnIndex + 1, line.length())
+                if endIndex.nothing?()
+                    throw({
+                        const::eid_notExpectedEOL,
+                        "line: " + (lineIndex + 1).toString() + ", column: " + line.length().toString() + ". The terminating character '\q' was not found.",
+                        [lineIndex + 1, line.length()]
+                    })
+                columnIndex = endIndex + 1
+                token.text`(line[beginIndex : columnIndex])
+            return token
+        default
+            throw({
+                const::eid_notExpectedToken,
+                "line: " + (lineIndex + 1).toString() + ", column: " + (columnIndex + 1).toString() + ". A character with decimal code " + char.toString() + " is not valid in the source code.",
+                [lineIndex + 1, columnIndex + 1]
+            })
+        columnIndex++
+
+// The function makes sure that the current position is the end of the line.
+def eol!(line String, lineIndex, columnIndex Int)
+    var mutColumnIndex Int = columnIndex
+    const token <>Token = line.getToken(lineIndex, mutColumnIndex)
+    if !token.nothing?()
+        throw(const::eid_notExpectedToken, token.coordinatesToString() + "The text \q" + token.text~() + "\q - to be where it does not belong.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+
+// The function makes sure that the current position is not the end of the line.
+def notEOL!(line String, lineIndex, columnIndex Int)
+    var mutColumnIndex Int = columnIndex
+    if line.getToken(lineIndex, mutColumnIndex).nothing?()
+        throw(const::eid_notExpectedEOL, "line: " + (lineIndex + 1).toString() + ", column: " + line.length().toString() + ". Unexpected end of line.", [lineIndex + 1, line.length()])
+
+// The function checks that the next token has the specified value.
+def next!(line, expectedText String, lineIndex, write columnIndex Int)
+    const token <>Token = line.getToken(lineIndex, columnIndex)
+    if token.nothing?()
+        throw(const::eid_notExpectedEOL, "line: " + (lineIndex + 1).toString() + ", column: " + line.length().toString() + ". Unexpected end of line.", [lineIndex + 1, line.length()])
+    if token.text~() != expectedText
+        throw(const::eid_notExpectedToken, token.coordinatesToString() + "\q" + expectedText + " was expected, but there is \q" + token.text~() + "\q.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+
+def getOptionValue(line String, lineIndex, write columnIndex Int) $Any
+    line.notEOL!(lineIndex, columnIndex)
+    const token Token = line.getToken(lineIndex, columnIndex)
+    line.eol!(lineIndex, columnIndex)
+    const value <>Map = token.text~().match?(const::valueRegExp)
+    if value.nothing?()
+        throw(const::eid_notExpectedToken, token.coordinatesToString() + "The text \q" + token.text~() + "\q - to be where it does not belong.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+    var result $Any = nothing
+    parse valueType String, valueAsString String = value
+        switch valueType[0]
+        case 's'
+            result = token.replaceText(valueAsString).toRawString()
+        case 't'
+            result = true
+        case 'f'
+            result = false
+        case 'i'
+            try
+                result = Int.fromString(valueAsString)
+            catch
+                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+        case 'h'
+            try
+                result = hexToInt(valueAsString)
+            catch
+                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+        case 'r'
+            const corrector Int = valueAsString[0].inRange?('0', ':' /*[0-9]*/).select(0, 1)
+            const integerDigits Int = valueAsString.look('.') - corrector
+            const fractionDigits Int = valueAsString.length() - integerDigits - corrector - 1
+            if !(integerDigits.inRange?(1, 10) && fractionDigits.inRange?(1, 10))
+                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+            result = Real.fromString(valueAsString)
+    return result

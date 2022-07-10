@@ -1,0 +1,7 @@
+module Sheriff
+
+export const eid_notExpectedEOL          Int = 0x5368657269666600
+export const eid_notExpectedToken        Int = 0x5368657269666601
+export const eid_invalidName             Int = 0x5368657269666602
+export const eid_incorrectEscapeSequence Int = 0x5368657269666603
+export const eid_alreadyExist            Int = 0x5368657269666604

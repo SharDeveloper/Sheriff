@@ -1,0 +1,296 @@
+module Main
+
+def testSheriff(write ok Int, write errorsCoordinates List)
+    testSheriff_basics(ok, errorsCoordinates)
+    testSheriff_key(ok, errorsCoordinates)
+    testSheriff_hex(ok, errorsCoordinates)
+    testSheriff_real(ok, errorsCoordinates)
+    testSheriff_int(ok, errorsCoordinates)
+    testSheriff_bool(ok, errorsCoordinates)
+    testSheriff_string(ok, errorsCoordinates)
+    testSheriff_comments(ok, errorsCoordinates)
+    testSheriff_prefix(ok, errorsCoordinates)
+    testSheriff_other(ok, errorsCoordinates)
+
+#noinline
+def testSheriff_basics(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("key=12.1").length() == 1
+        loadFromString("key=12.1")["key"].inRange?(12.0, 12.2)
+        loadFromString("key=1").length() == 1
+        loadFromString("key=1")["key"] == 1
+        loadFromString("key=0xfff").length() == 1
+        loadFromString("key=0xfff")["key"] == 0xfff
+        loadFromString("key=on").length() == 1
+        loadFromString("key=on")["key"]
+        loadFromString("key=\qabc\q").length() == 1
+        loadFromString("key=\qabc\q")["key"] == "abc"
+        loadFromString("k=3\n[p]\nk=7").length() == 2
+        loadFromString("k=3\n[p]\nk=7")["[p]"].length() == 1
+        loadFromString("k=3\n[p]\nk=7")["[p]"]["k"] == 7
+        loadFromString("key= 12.1").length() == 1
+        loadFromString("key= 12.1")["key"].inRange?(12.0, 12.2)
+        loadFromString("key =1").length() == 1
+        loadFromString("key =1")["key"] == 1
+        loadFromString("key = 0xfff").length() == 1
+        loadFromString("key = 0xfff")["key"] == 0xfff
+        loadFromString(" key=0xfff ").length() == 1
+        loadFromString(" key=0xfff ")["key"] == 0xfff
+        loadFromString(" Key = on ").length() == 1
+        loadFromString(" Key = on ")["Key"]
+        loadFromString("           key      =   \qabc\q   ").length() == 1
+        loadFromString("           key      =   \qabc\q   ")["key"] == "abc"
+        loadFromString("k=3   \n\n\n[p]   \nk= 7 \n").length() == 2
+        loadFromString("k=3   \n\n\n[p]   \nk= 7 \n")["[p]"].length() == 1
+        loadFromString("k=3   \n\n\n[p]   \nk= 7 \n")["[p]"]["k"] == 7
+        loadFromString("k=3   \n\n\n[P]   \nk= 7 \n").length() == 2
+        loadFromString("k=3   \n\n\n[P]   \nk= 7 \n")["[P]"].length() == 1
+        loadFromString("k=3   \n\n\n[P]   \nk= 7 \n")["[P]"]["k"] == 7
+
+#noinline
+def testSheriff_key(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("1 = 1") : eid_invalidName
+        loadFromString(" = 1") : eid_invalidName
+        loadFromString("_ = 1") : eid_invalidName
+        loadFromString("_.a.a = 1") : eid_invalidName
+        loadFromString("a._.a = 1") : eid_invalidName
+        loadFromString("k = 1\nk = 2") : eid_alreadyExist
+        loadFromString("a.k = 1\n[a]\nk = 2") : eid_alreadyExist
+        loadFromString("a.k. = 12") : eid_invalidName
+        loadFromString("a. = 12") : eid_invalidName
+        loadFromString(". = 12") : eid_invalidName
+        loadFromString("- = 12").length() == 1
+        loadFromString("-=12").length() == 1
+    try
+        parse _, value = loadFromString("-=12")
+            test: ok, errorsCoordinates
+                value == 12
+    catch
+        test: ok, errorsCoordinates
+            false
+
+#noinline
+def testSheriff_hex(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n").length() == 7
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k1"] == 0x0
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k2"] == 0x1122334455667788
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k3"] == 0xffffffffffffffff
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k4"] == 0xaabbccddeeff
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k5"] == 0xaabbccddeeff
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k6"] == 0xaabbccddeeff
+        loadFromString("k1 = 0x0\nk2 = 0x1122334455667788\nk3 = 0xffffffffffffffff\nk4 = 0xaAbBcCdDeEfF\nk5 = 0xAaBbCcDdEeFf\nk6 = 0xaabbccddeeff\nk7 = 0xAABBCCDDEEFF\n")["k7"] == 0xaabbccddeeff
+        loadFromString("k = -0x1") : eid_notExpectedToken
+        loadFromString("k = +0x1") : eid_notExpectedToken
+        loadFromString("k = 0xg") : eid_notExpectedToken
+        loadFromString("k = 0x10000000000000000") : eid_outOfRange
+        loadFromString("k = 0xfffffffffffffffff") : eid_outOfRange
+        loadFromString("k = 0x0f") : eid_notExpectedToken
+        loadFromString("k = 0x00f") : eid_notExpectedToken
+        loadFromString("k = 0x010f") : eid_notExpectedToken
+
+#noinline
+def testSheriff_real(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k1 = 0.0\nk2 = -0.01\nk3 = +0.01\nk4 = -999999999.999999999 \nk5 = 999999999.999999999\nk6 = 13.7")["k1"] == 0.0
+        loadFromString("k1 = 0.0\nk2 = -0.01\nk3 = +0.01\nk4 = -999999999.999999999 \nk5 = 999999999.999999999\nk6 = 13.7")["k2"].inRange?(-0.02, -0.005)
+        loadFromString("k1 = 0.0\nk2 = -0.01\nk3 = +0.01\nk4 = -999999999.999999999 \nk5 = 999999999.999999999\nk6 = 13.7")["k3"].inRange?(0.005, 0.02)
+        loadFromString("k1 = 0.0\nk2 = -0.01\nk3 = +0.01\nk4 = -999999999.999999999 \nk5 = 999999999.999999999\nk6 = 13.7")["k4"].inRange?(-1000000000.1, -999999998.0)
+        loadFromString("k1 = 0.0\nk2 = -0.01\nk3 = +0.01\nk4 = -999999999.999999999 \nk5 = 999999999.999999999\nk6 = 13.7")["k5"].inRange?(999999998.0, 1000000000.1)
+        loadFromString("k1 = 0.0\nk2 = -0.01\nk3 = +0.01\nk4 = -999999999.999999999 \nk5 = 999999999.999999999\nk6 = 13.7")["k6"].inRange?(13.6, 13.8)
+        loadFromString("k = 0.5")["k"] == 0.5
+        loadFromString("k = NaN") : eid_notExpectedToken
+        loadFromString("k = 1.1e12") : eid_notExpectedToken
+        loadFromString("k = -999999999.9999999991") : eid_outOfRange
+        loadFromString("k = -999999999.1999999999") : eid_outOfRange
+        loadFromString("k = -1000000000.0") : eid_outOfRange
+        loadFromString("k = 999999999.9999999991") : eid_outOfRange
+        loadFromString("k = 999999999.1999999999") : eid_outOfRange
+        loadFromString("k = 1000000000.0") : eid_outOfRange
+        loadFromString("k = 0.10000000001") : eid_outOfRange
+        loadFromString("k = -1.1E12") : eid_notExpectedToken
+        loadFromString("k = -0.0") : eid_notExpectedToken
+        loadFromString("k = +0.0") : eid_notExpectedToken
+        loadFromString("k = -0.0 ") : eid_notExpectedToken
+        loadFromString("k = +0.0 ") : eid_notExpectedToken
+        loadFromString("k = -0.00") : eid_notExpectedToken
+        loadFromString("k = +0.00") : eid_notExpectedToken
+        loadFromString("k = -0.00 ") : eid_notExpectedToken
+        loadFromString("k = +0.00 ") : eid_notExpectedToken
+        loadFromString("k = -0.000") : eid_notExpectedToken
+        loadFromString("k = +0.000") : eid_notExpectedToken
+        loadFromString("k = -0.000 ") : eid_notExpectedToken
+        loadFromString("k = +0.000 ") : eid_notExpectedToken
+        loadFromString("k = +-1.1 ") : eid_notExpectedToken
+        loadFromString("k = -+1.1 ") : eid_notExpectedToken
+        loadFromString("k = 01.1 ") : eid_notExpectedToken
+        loadFromString("k = 1.10 ") : eid_notExpectedToken
+        loadFromString("k = 1.100000 ") : eid_notExpectedToken
+        loadFromString("k = +1.100000 ") : eid_notExpectedToken
+        loadFromString("k = -1.100000 ") : eid_notExpectedToken
+        loadFromString("k = 1.1234567890 ") : eid_notExpectedToken
+
+#noinline
+def testSheriff_int(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k1 = 0\nk2 = 1\nk3 = -10\nk4 = -9223372036854775808 \nk5 = 9223372036854775807\nk6 = 137").length() == 6
+        loadFromString("k1 = 0\nk2 = 1\nk3 = -10\nk4 = -9223372036854775808 \nk5 = 9223372036854775807\nk6 = 137")["k1"] == 0
+        loadFromString("k1 = 0\nk2 = 1\nk3 = -10\nk4 = -9223372036854775808 \nk5 = 9223372036854775807\nk6 = 137")["k2"] == 1
+        loadFromString("k1 = 0\nk2 = 1\nk3 = -10\nk4 = -9223372036854775808 \nk5 = 9223372036854775807\nk6 = 137")["k3"] == -10
+        loadFromString("k1 = 0\nk2 = 1\nk3 = -10\nk4 = -9223372036854775808 \nk5 = 9223372036854775807\nk6 = 137")["k4"] == -9223372036854775808
+        loadFromString("k1 = 0\nk2 = 1\nk3 = -10\nk4 = -9223372036854775808 \nk5 = 9223372036854775807\nk6 = 137")["k5"] == 9223372036854775807
+        loadFromString("k = +0") : eid_notExpectedToken
+        loadFromString("k = -0") : eid_notExpectedToken
+        loadFromString("k = +00") : eid_notExpectedToken
+        loadFromString("k = -00") : eid_notExpectedToken
+        loadFromString("k = +0 ") : eid_notExpectedToken
+        loadFromString("k = -0 ") : eid_notExpectedToken
+        loadFromString("k = +00 ") : eid_notExpectedToken
+        loadFromString("k = -00 ") : eid_notExpectedToken
+        loadFromString("k =  9223372036854775808") : eid_outOfRange
+        loadFromString("k =  -9223372036854775809") : eid_outOfRange
+        loadFromString("k =  10000000000000000000000000") : eid_outOfRange
+        loadFromString("k =  +10000000000000000000000000") : eid_outOfRange
+        loadFromString("k =  -10000000000000000000000000") : eid_outOfRange
+        loadFromString("k =  +9223372036854775807")["k"] == 9223372036854775807
+        loadFromString("k =  +1")["k"] == 1
+        loadFromString("k =  -1")["k"] == -1
+        loadFromString("k=01") : eid_notExpectedToken
+        loadFromString("k=09") : eid_notExpectedToken
+
+#noinline
+def testSheriff_bool(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false").length() == 6
+        loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false")["k1"]
+        loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false")["k3"]
+        loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false")["k5"]
+        !loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false")["k2"]
+        !loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false")["k4"]
+        !loadFromString("k1 = on\nk2 = off\nk3 = yes\nk4 = no\nk5 = true\nk6 = false")["k6"]
+        loadFromString("k = True") : eid_notExpectedToken
+        loadFromString("k = On") : eid_notExpectedToken
+        loadFromString("k = Yes") : eid_notExpectedToken
+        loadFromString("k = on no") : eid_notExpectedToken
+        loadFromString("k = onno") : eid_notExpectedToken
+        loadFromString("k = tru e") : eid_notExpectedToken
+
+#noinline
+def testSheriff_string(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k1 = \q\q\nk2 = \q123\q\nk3 = \q \\\\ \\n \\t \\q \\p \\000000 \q\nk4 = \q''\q\n").length() == 4
+        loadFromString("k1 = \q\q\nk2 = \q123\q\nk3 = \q \\\\ \\n \\t \\q \\p \\000000 \q\nk4 = \q''\q\n")["k1"] == ""
+        loadFromString("k1 = \q\q\nk2 = \q123\q\nk3 = \q \\\\ \\n \\t \\q \\p \\000000 \q\nk4 = \q''\q\n")["k2"] == "123"
+        loadFromString("k1 = \q\q\nk2 = \q123\q\nk3 = \q \\\\ \\n \\t \\q \\p \\000000 \q\nk4 = \q''\q\n")["k3"] == " \\ \n \t \q \p \000000 "
+        loadFromString("k1 = \q\q\nk2 = \q123\q\nk3 = \q \\\\ \\n \\t \\q \\p \\000000 \q\nk4 = \q''\q\n")["k4"] == "''"
+        loadFromString("k1=\q\\01F34E\q")["k1"] == "\01F34E"
+        loadFromString("k = \q") : eid_notExpectedEOL
+        loadFromString("k = \q\q\q") : eid_notExpectedEOL
+        loadFromString("k = \q\q\q\q") : eid_notExpectedToken
+        loadFromString("k = \qa\q\q\q") : eid_notExpectedToken
+        loadFromString("k = \qa\qa\q\q") : eid_notExpectedToken
+        loadFromString("k = \qa\qa\qa\q") : eid_notExpectedToken
+        loadFromString("k = \q\qa\qa\q") : eid_notExpectedToken
+        loadFromString("k = \q\\\q") : eid_incorrectEscapeSequence
+        loadFromString("k = \q\\a\q") : eid_incorrectEscapeSequence
+        loadFromString("k = \q\\000\q") : eid_incorrectEscapeSequence
+        loadFromString("k = \q\\000r\q") : eid_incorrectEscapeSequence
+        loadFromString("k = \q\\r000\q") : eid_incorrectEscapeSequence
+
+#noinline
+def testSheriff_comments(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("key=12.1 ;").length() == 1
+        loadFromString("key=12.1 ; asd").length() == 1
+        loadFromString("key=1 ;;").length() == 1
+        loadFromString("key=0xfff ;231").length() == 1
+        loadFromString("key=on;1").length() == 1
+        loadFromString("key=\qabc\q;5234").length() == 1
+        loadFromString("k=3\n[p];hghf\nk=7").length() == 2
+        loadFromString("k=3\n[p];dfgert\nk=7")["[p]"].length() == 1
+        loadFromString(";").length() == 0
+        loadFromString(";123").length() == 0
+        loadFromString(" ;123").length() == 0
+
+#noinline
+def testSheriff_prefix(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111").length() == 3
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["k1"] == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"].length() == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"].length() == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"]["[p3]"].length() == 4
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"]["[p3]"]["k0"] == 100
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"]["[p3]"]["k1"] == 123
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"]["[p3]"]["k2"] == 45
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"]["[p3]"]["[p1]"].length() == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p1]"]["[p2]"]["[p3]"]["[p1]"]["k0"] == 66
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p2]"].length() == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p2]"]["[p3]"].length() == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p2]"]["[p3]"]["[p4]"].length() == 2
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p2]"]["[p3]"]["[p4]"]["k1"] == 777
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p2]"]["[p3]"]["[p4]"]["[p1]"].length() == 1
+        loadFromString("k1 = 1\np1.p2.p3.k0 = 100\n[p1.p2.p3]\nk1 = 123\n\nk2 = 45\np1.k0 = 66\n[p2.p3.p4]\nk1 = 777\np1.k0 = 111")["[p2]"]["[p3]"]["[p4]"]["[p1]"]["k0"] == 111
+        loadFromString("[a]").length() == 0
+        loadFromString("[a.p]\n[a]\n").length() == 0
+        loadFromString("[a.p]\n[a]\n[a]\n").length() == 0
+        loadFromString("[p1.p2.]\nk0 = 123") : eid_invalidName
+        loadFromString("[p1.]") : eid_invalidName
+        loadFromString("[p1..p2]") : eid_invalidName
+        loadFromString("[]") : eid_invalidName
+        loadFromString("[[a]]") : eid_invalidName
+        loadFromString("[ [a] ]") : eid_invalidName
+        loadFromString("[.a]") : eid_invalidName
+        loadFromString("[.a.a]") : eid_invalidName
+        loadFromString("a.b.c.-=14").length() == 1
+        loadFromString("a.-.c = 1") : eid_invalidName
+        loadFromString("-.b.c = 1") : eid_invalidName
+        loadFromString("a.-.- = 1") : eid_invalidName
+        loadFromString("-.-.- = 1") : eid_invalidName
+        loadFromString("a . b . c = 1") : eid_notExpectedToken
+        loadFromString("a .b.c = 1") : eid_notExpectedToken
+        loadFromString("[-]\nk=12").length() == 1
+    try
+        parse _, a = loadFromString("a.b.c.-=14")
+            test: ok, errorsCoordinates
+                a.length() == 1
+            parse _, b = a
+                test: ok, errorsCoordinates
+                    b.length() == 1
+                parse _, c = b
+                    test: ok, errorsCoordinates
+                        c.length() == 1
+                    parse _, value = c
+                        test: ok, errorsCoordinates
+                            value == 14
+    catch
+        test: ok, errorsCoordinates
+            false
+    try
+        parse _, category = loadFromString("[-]\nk=12")
+            test: ok, errorsCoordinates
+                category.length() == 1
+            parse option, value = category
+                test: ok, errorsCoordinates
+                    option == "k"
+                    value == 12
+    catch
+        test: ok, errorsCoordinates
+            false
+
+#noinline
+def testSheriff_other(write ok Int, write errorsCoordinates List)
+    test: ok, errorsCoordinates
+        loadFromString("k\t=1") : eid_notExpectedToken
+        loadFromString("k=\t1") : eid_notExpectedToken
+        loadFromString("\tk=1") : eid_notExpectedToken
+        loadFromString("k=1\t") : eid_notExpectedToken
+        loadFromString("\tk\t=\t1\t") : eid_notExpectedToken
+        loadFromString("k\000000=1") : eid_notExpectedToken
+        loadFromString("k=\0000001") : eid_notExpectedToken
+        loadFromString("\000000k=1") : eid_notExpectedToken
+        loadFromString("k=1\000000") : eid_notExpectedToken
+        loadFromString("\000000k\000000=\0000001\000000") : eid_notExpectedToken
+        loadFromString("key==1") : eid_notExpectedToken
+        loadFromString("key = = 1") : eid_notExpectedToken

@@ -1,0 +1,146 @@
+module Sheriff
+
+const shortNameRegExp RegExp = RegExp("[A-Za-z]`w*")
+
+// The token along with the coordinates of the place where it is located in a config.
+type Token
+    text        String
+    lineIndex   Int
+    columnIndex Int
+
+attach Token to Equal
+
+attach Token to Shar__sugar__equal
+    def shar__sugar__equal(token1, token2 Token) Bool
+        return token1.text~() == token2.text~()
+
+attach Token to Shar__sugar__notEqual
+    def shar__sugar__notEqual(token1, token2 Token) Bool
+        return !(token1 == token2)
+
+attach Token to Ordered
+    def compare(token1, token2 Token) CompareResult
+        return token1.text~().compare(token2.text~())
+
+attach Token to Shar__sugar__less
+    def shar__sugar__less(token1, token2 Token) Bool
+        return token1.text~() < token2.text~()
+
+attach Token to Shar__sugar__great
+    def shar__sugar__great(token1, token2 Token) Bool
+        return token1.text~() > token2.text~()
+
+attach Token to Shar__sugar__lessOrEqual
+    def shar__sugar__lessOrEqual(token1, token2 Token) Bool
+        return token1.text~() <= token2.text~()
+
+attach Token to Shar__sugar__greatOrEqual
+    def shar__sugar__greatOrEqual(token1, token2 Token) Bool
+        return token1.text~() >= token2.text~()
+
+attach Token to Shar__sugar__getItem
+    def shar__sugar__getItem(token Token, index $Any) $Any
+        return token.text~()[index]
+
+attach Token to Long
+    def length(token Token) Int
+        return token.text~().length()
+
+attach Token to Hashable
+    def getHash(token Token) Int
+        return token.text~().getHash()
+
+    def getRandomizedHash(token Token) Int
+        return token.text~().getRandomizedHash()
+
+def addString(write token Token, string String)
+    var text String = token.text`("")
+    text += string
+    token.text`(text)
+
+def addChar(write token Token, char Char)
+    var text String = token.text`("")
+    text.addItem(char)
+    token.text`(text)
+
+def replaceText(token Token, newText String) Token
+    var result Token = token
+    result.text`(newText)
+    return result
+
+def addToColumnIndex(write token Token, addValue Int)
+    token.columnIndex`(token.columnIndex~() + addValue)
+
+def coordinatesToString(token Token) String
+    return "line: " + (token.lineIndex~() + 1).toString() + ", column: " + (token.columnIndex~() + 1).toString() + ". "
+
+// The function returns a unique identifier for the token.
+def getUniqID(token Token) String
+    return "_" + token.lineIndex~().toString() + "_" + token.columnIndex~().toString()
+
+// If the name is incorrect, then the function throws an exception with the code "const::eid_invalidName".
+def name!(name Token)
+    const isCategoryName Bool = name[0] == '[' && name[name.length() - 1] == ']'
+    const fullName Array = isCategoryName.select(name.text~()[1:name.text~().length() - 1], name.text~()).split('.')
+    for :(categoryFromPathIndex Int = 0) categoryFromPathIndex + 1 < fullName.length(); categoryFromPathIndex++
+        name.replaceText(fullName[categoryFromPathIndex]).shortName!(true)
+    const lastName String = fullName[fullName.length() - 1]
+    if lastName.empty?() || lastName[0] != '-'
+        name.replaceText(lastName).shortName!(isCategoryName)
+
+def shortName!(name Token, isCategoryName Bool)
+    if name.text~().match?(const::shortNameRegExp).nothing?()
+        throw(const::eid_invalidName, name.coordinatesToString() + "\q" + name.text~() + "\q is an invalid " + isCategoryName.select("category", "option") + " name.", [name.lineIndex~() + 1, name.columnIndex~() + 1])
+
+def toRawString(token Token) String
+    var result String = ""
+    var escChar String = ""
+    parse :(parse) _, char = token.text~()
+        switch escChar.length()
+        case 0
+            if char == '\\'
+                escChar = "\\"
+            else
+                result.addItem(char)
+        case 1
+            switch char
+            case 'n'
+                escChar = ""
+                result.addItem('\n')
+            case 't'
+                escChar = ""
+                result.addItem('\t')
+            case '\\'
+                escChar = ""
+                result.addItem('\\')
+            case 'q'
+                escChar = ""
+                result.addItem('\q')
+            case 'p'
+                escChar = ""
+                result.addItem('\p')
+            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F'
+                escChar.addItem(char)
+            default
+                escChar.addItem(char)
+                end parse
+        case 6
+            escChar.addItem(char)
+            try
+                result.addItem(intToChar(hexToInt("0x" + escChar[1:])))
+            catch
+                throw({
+                    const::eid_incorrectEscapeSequence,
+                    "line: " + (token.lineIndex~() + 1).toString() + ", column: " + (token.columnIndex~() + result.length() + 1).toString() + ". "
+                    "\q" + escChar + "\q is an invalid escape sequence.", [token.lineIndex~() + 1, token.columnIndex~() + result.length() + 1]
+                })
+            escChar = ""
+        default
+            escChar.addItem(char)
+    if !escChar.empty?()
+        throw({
+            const::eid_incorrectEscapeSequence,
+            "line: " + (token.lineIndex~() + 1).toString() + ", column: " + (token.columnIndex~() + result.length() + 1).toString() + ". "
+            "\q" + escChar + "\q is an invalid escape sequence.", [token.lineIndex~() + 1, token.columnIndex~() + result.length() + 1]
+        })
+    return result
