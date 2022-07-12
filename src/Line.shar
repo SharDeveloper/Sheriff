@@ -96,29 +96,29 @@ def getOptionValue(line String, lineIndex, write columnIndex Int) $Any
     if value.nothing?()
         throw(const::eid_notExpectedToken, token.coordinatesToString() + "The text \q" + token.text~() + "\q - to be where it does not belong.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
     var result $Any = nothing
-    parse valueType String, valueAsString String = value
+    parse valueType String, valueAsString MString = value
         switch valueType[0]
         case 's'
-            result = token.replaceText(valueAsString).toRawString()
+            result = token.replaceText(valueAsString.value~()).toRawString()
         case 't'
             result = true
         case 'f'
             result = false
         case 'i'
             try
-                result = Int.fromString(valueAsString)
+                result = Int.fromString(valueAsString.value~())
             catch
-                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString.value~() + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
         case 'h'
             try
-                result = hexToInt(valueAsString)
+                result = hexToInt(valueAsString.value~())
             catch
-                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString.value~() + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
         case 'r'
-            const corrector Int = valueAsString[0].inRange?('0', ':' /*[0-9]*/).select(0, 1)
-            const integerDigits Int = valueAsString.look('.') - corrector
-            const fractionDigits Int = valueAsString.length() - integerDigits - corrector - 1
+            const corrector Int = valueAsString.value~()[0].inRange?('0', ':' /*[0-9]*/).select(0, 1)
+            const integerDigits Int = valueAsString.value~().look('.') - corrector
+            const fractionDigits Int = valueAsString.value~().length() - integerDigits - corrector - 1
             if !(integerDigits.inRange?(1, 10) && fractionDigits.inRange?(1, 10))
-                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
-            result = Real.fromString(valueAsString)
+                throw(const::eid_outOfRange, token.coordinatesToString() + "The number \q" + valueAsString.value~() + "\q is out of range.", [token.lineIndex~() + 1, token.columnIndex~() + 1])
+            result = Real.fromString(valueAsString.value~())
     return result
